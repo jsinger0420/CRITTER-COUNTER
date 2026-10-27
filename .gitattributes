@@ -1,0 +1,7 @@
+# Normalize line endings: LF in the repo (same as rpi-app-framework).
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary

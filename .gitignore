@@ -1,0 +1,35 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# Test and lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# App output (images and logs stay on the device)
+detections/
+photos/
+videos/
+LOGFILES/
+
+# Secrets
+.env
+wifi_config.json
+
+# Thonny & IDE
+.thonny/
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

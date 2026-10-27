@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "critter-counter"
+version = "0.1.0"
+description = "Watch a field with a Raspberry Pi camera and save images of animals that cross it."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "John Singer", email = "john@singerlinks.com" }]
+dependencies = [
+    # 0.2.0 is only on GitHub main until it is released to PyPI; then use
+    # "rpi-app-framework[gpio]>=0.2.0".
+    "rpi-app-framework[gpio] @ git+https://github.com/jsinger0420/RPI-APP-FRAMEWORK.git",
+    # On the Pi both come from apt with python3-picamera2 (venv made with
+    # --system-site-packages), so pip finds them already installed.
+    "numpy",
+    "pillow",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "black"]
+
+[project.scripts]
+critter-counter = "critter_counter.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# Same rule set as rpi-app-framework: pycodestyle, pyflakes, import order,
+# Google docstrings, bugbear.
+select = ["E", "F", "W", "I", "D", "B"]
+ignore = ["E501", "D403"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
