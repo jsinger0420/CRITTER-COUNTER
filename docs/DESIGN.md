@@ -77,5 +77,11 @@ WiFi bridge (+3–6 W), or cellular modem (~2 W + data plan).
 - Default resolution 1640x1232: full field of view, 2x2 binned. Full 3280x2464 in
   the framework's always-on video mode needs too much memory on a Zero 2 W; full-res
   stills would need a mode switch in the framework.
-- Night mode is blocked on exposure/gain controls in `CameraDeviceManager`
-  (proposed for the framework, see the README).
+- Day/night (`daynight.py`, `app.py`): auto exposure by day; at night
+  `set_exposure(4 s, gain 8, awb 1/1)` from the framework's exposure API.
+  Switching uses the camera's `Lux` estimate with hysteresis (night below 10,
+  day above 40, 3 readings in a row, one reading a minute); at night an
+  over-exposed frame (mean > 200) also votes for day. Thresholds are starting
+  guesses to tune on site. Each switch waits for the new settings, relearns
+  the background and uses a higher detection threshold at night (35 vs 25).
+- Saved images are tagged `_day_` or `_night_` for the later classifier.

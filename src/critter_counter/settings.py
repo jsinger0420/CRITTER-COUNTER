@@ -8,6 +8,8 @@ Typical usage:
 import argparse
 from dataclasses import dataclass, fields
 
+MODES = ("auto", "day", "night")
+
 
 @dataclass
 class Settings:
@@ -32,6 +34,23 @@ class Settings:
         jpeg_quality (int): JPEG quality for saved images, 1-95.
         stream_port (int or None): Port for the live view; None turns it off.
         stream_fps (float): Live view frames per second (0.5-30).
+        mode (str): ``"auto"`` switches between day and night from the
+            light level; ``"day"`` or ``"night"`` stays in that mode.
+        night_exposure_us (int): Night exposure time in microseconds
+            (IMX219 maximum about 11.7 s).
+        night_gain (float): Night analogue gain (IMX219: 1.0 to about 10.7).
+        night_awb (tuple or None): Fixed ``(red, blue)`` white-balance gains
+            at night; None keeps auto white balance.
+        night_pixel_threshold (float): ``pixel_threshold`` at night, higher
+            because long, high-gain exposures are noisier.
+        night_below_lux (float): Switch to night when the camera's ``Lux``
+            estimate stays below this.
+        day_above_lux (float): Switch back to day when it stays above this.
+        light_confirm (int): Light readings in a row needed to switch.
+        light_check_interval (float): Seconds between light readings in
+            auto mode.
+        overexposed_level (float): At night, a mean frame brightness (0-255)
+            at or above this means dawn: switch to day.
     """
 
     resolution: tuple = (1640, 1232)
@@ -49,13 +68,41 @@ class Settings:
     jpeg_quality: int = 90
     stream_port: int = 8000
     stream_fps: float = 2.0
+    mode: str = "auto"
+    night_exposure_us: int = 4_000_000
+    night_gain: float = 8.0
+    night_awb: tuple = (1.0, 1.0)
+    night_pixel_threshold: float = 35.0
+    night_below_lux: float = 10.0
+    day_above_lux: float = 40.0
+    light_confirm: int = 3
+    light_check_interval: float = 60.0
+    overexposed_level: float = 200.0
+
+    def __post_init__(self):
+        """Check the settings that are not checked where they are used.
+
+        Raises:
+            ValueError: If a setting is out of range.
+        """
+        if self.mode not in MODES:
+            raise ValueError("mode must be one of {}".format(", ".join(MODES)))
+        if self.interval <= 0:
+            raise ValueError("interval must be > 0 seconds")
+        if self.light_check_interval < 0:
+            raise ValueError("light_check_interval must be >= 0 seconds")
+        if self.night_exposure_us <= 0:
+            raise ValueError("night_exposure_us must be > 0 microseconds")
+        if self.night_gain <= 0:
+            raise ValueError("night_gain must be > 0")
 
     @classmethod
     def from_args(cls, argv=None):
         """Build settings from command-line arguments.
 
         Every field is an option (``--pixel-threshold 30``); ``--resolution``
-        takes ``WIDTHxHEIGHT`` and ``--no-stream`` turns the live view off.
+        takes ``WIDTHxHEIGHT``, ``--night-awb`` takes ``RED,BLUE`` or
+        ``auto``, and ``--no-stream`` turns the live view off.
 
         Args:
             argv: Argument list without the program name; defaults to
@@ -70,7 +117,7 @@ class Settings:
             description="Watch a field and save images of animals that cross it.",
         )
         for f in fields(cls):
-            if f.name in ("resolution", "stream_port"):
+            if f.name in ("resolution", "stream_port", "mode", "night_awb"):
                 continue
             value = getattr(defaults, f.name)
             parser.add_argument(
@@ -84,6 +131,20 @@ class Settings:
             type=_parse_resolution,
             default=defaults.resolution,
             help="camera WIDTHxHEIGHT (default: {}x{})".format(*defaults.resolution),
+        )
+        parser.add_argument(
+            "--mode",
+            choices=MODES,
+            default=defaults.mode,
+            help="auto: switch day/night from the light level (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--night-awb",
+            type=_parse_awb,
+            default=defaults.night_awb,
+            help="night white balance RED,BLUE or 'auto' (default: {:g},{:g})".format(
+                *defaults.night_awb
+            ),
         )
         parser.add_argument(
             "--stream-port",
@@ -122,3 +183,26 @@ def _parse_resolution(text):
     if width <= 0 or height <= 0:
         raise argparse.ArgumentTypeError("width and height must be positive")
     return (width, height)
+
+
+def _parse_awb(text):
+    """Parse ``RED,BLUE`` white-balance gains (or ``auto``) for argparse.
+
+    Args:
+        text: e.g. ``"1,1"``, ``"1.5,1.2"`` or ``"auto"``.
+
+    Returns:
+        tuple or None: ``(red, blue)``, or None for auto white balance.
+
+    Raises:
+        argparse.ArgumentTypeError: If the text is not two positive numbers.
+    """
+    if text.strip().lower() == "auto":
+        return None
+    try:
+        red, blue = (float(v) for v in text.split(","))
+    except ValueError:
+        raise argparse.ArgumentTypeError("use RED,BLUE (e.g. 1,1) or auto") from None
+    if red <= 0 or blue <= 0:
+        raise argparse.ArgumentTypeError("white-balance gains must be positive")
+    return (red, blue)

@@ -20,9 +20,22 @@ class FakePicamera2:
         config: Last configuration passed to ``configure``.
         options (dict): Encoder options.
         closed (bool): True after ``close``.
+        controls (dict): All controls set so far (later calls override).
+        control_calls (list): Each dict passed to ``set_controls``.
+        lux (float or None): Class attribute: the ``Lux`` every camera
+            reports in its metadata (None leaves the key out). Tests change
+            it through the ``fake_camera`` fixture to simulate dusk and dawn.
+        camera_controls (dict): IMX219-like control ranges.
     """
 
     instances = []
+    lux = 300.0
+    camera_controls = {
+        "ExposureTime": (75, 11_766_829, 20_000),
+        "AnalogueGain": (1.0, 10.666667, 1.0),
+        "FrameDurationLimits": (47_183, 11_767_556, 33_333),
+    }
+    NORMAL_FRAME_US = 33_333
 
     def __init__(self, camera_num=0):
         """Open the fake camera."""
@@ -31,11 +44,33 @@ class FakePicamera2:
         self.config = None
         self.options = {}
         self.closed = False
+        self.controls = {}
+        self.control_calls = []
         FakePicamera2.instances.append(self)
 
     def create_video_configuration(self, main=None):
-        """Return a config dict."""
-        return {"main": main}
+        """Return a config dict running at 30 fps."""
+        frame = self.NORMAL_FRAME_US
+        return {"main": main, "controls": {"FrameDurationLimits": (frame, frame)}}
+
+    def set_controls(self, controls):
+        """Record and apply controls (they take effect at once here)."""
+        self.control_calls.append(dict(controls))
+        self.controls.update(controls)
+
+    def capture_metadata(self):
+        """Return metadata reflecting the current controls and ``lux``."""
+        if self.controls.get("AeEnable", True):
+            exposure, gain = 10_000, 1.0
+            frame = self.NORMAL_FRAME_US
+        else:
+            exposure = self.controls["ExposureTime"]
+            gain = self.controls["AnalogueGain"]
+            frame = max(exposure, self.NORMAL_FRAME_US)
+        md = {"ExposureTime": exposure, "AnalogueGain": gain, "FrameDuration": frame}
+        if FakePicamera2.lux is not None:
+            md["Lux"] = FakePicamera2.lux
+        return md
 
     def configure(self, config):
         """Store the config."""
@@ -76,12 +111,14 @@ def fake_camera(monkeypatch):
 
     Returns:
         type: :class:`FakePicamera2`; ``FakePicamera2.instances[-1]`` is the
-        camera the app opened.
+        camera the app opened, and setting ``.lux`` changes the light level
+        (300 lux, daylight, by default).
     """
     module = types.ModuleType("picamera2")
     module.Picamera2 = FakePicamera2
     monkeypatch.setitem(sys.modules, "picamera2", module)
     FakePicamera2.instances = []
+    FakePicamera2.lux = 300.0
     return FakePicamera2
 
 
