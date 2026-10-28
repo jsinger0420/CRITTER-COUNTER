@@ -64,15 +64,29 @@ Useful options (`critter-counter --help` lists all):
 
 ## Develop on Windows
 
+The framework's new API is not on PyPI yet, and neither step below uses PyPI
+for it. Keep this order: installing the app pulls the framework from GitHub
+`main`, and the second line then swaps in your local checkout, so framework
+edits apply at once. The other way round, the app install replaces your local
+framework with the GitHub copy.
+
 ```powershell
 cd C:\Users\Jsing\dev\CRITTER-COUNTER
 py -m venv .venv
 .venv\Scripts\activate
-# Use your local framework checkout so framework fixes are picked up at once:
-pip install -e ..\RPI-APP-FRAMEWORK
-pip install -e ".[dev]"
+pip install -e ".[dev]"               # app + framework from GitHub (needs Git for Windows)
+pip install -e ..\RPI-APP-FRAMEWORK   # then use your local framework checkout
 pytest
 ruff check . ; black --check .
+```
+
+Without Git for Windows (`git --version` fails), install from the local
+framework only:
+
+```powershell
+pip install -e "..\RPI-APP-FRAMEWORK[gpio]"
+pip install -e . --no-deps
+pip install numpy pillow pytest ruff black
 ```
 
 Tests use the real framework with a fake `picamera2`, so no camera is needed.
