@@ -1,13 +1,13 @@
 """Save detection images: the full frame and a close-up of the changed region.
 
-Images go into one folder per day::
+Images go into one folder per day, tagged with the capture mode::
 
-    detections/2026-10-27/183005_full.jpg
-    detections/2026-10-27/183005_crop.jpg
+    detections/2026-10-27/183005_night_full.jpg
+    detections/2026-10-27/183005_night_crop.jpg
 
 Typical usage:
 
-    full, crop = save_detection(frame, detection, "detections")
+    full, crop = save_detection(frame, detection, "detections", tag="night")
 """
 
 import os
@@ -70,7 +70,7 @@ def save_jpeg(frame, path, quality=90):
 
 
 def save_detection(
-    frame, detection, root, when=None, pad=0.5, min_size=160, quality=90
+    frame, detection, root, when=None, pad=0.5, min_size=160, quality=90, tag=None
 ):
     """Save the full frame and a close-up of a detection.
 
@@ -83,6 +83,8 @@ def save_detection(
         pad: Close-up margin, see :func:`crop_box`.
         min_size: Smallest close-up size in pixels, see :func:`crop_box`.
         quality: JPEG quality 1-95.
+        tag: Word added to the names, e.g. ``"night"``
+            (``183005_night_full.jpg``); None for no tag.
 
     Returns:
         tuple: ``(full_path, crop_path)``.
@@ -92,6 +94,8 @@ def save_detection(
     folder = os.path.join(root, time.strftime("%Y-%m-%d", when))
     os.makedirs(folder, exist_ok=True)
     stem = os.path.join(folder, time.strftime("%H%M%S", when))
+    if tag:
+        stem += "_" + tag
     base, n = stem, 2
     while os.path.exists(base + "_full.jpg"):
         base, n = "{}_{}".format(stem, n), n + 1

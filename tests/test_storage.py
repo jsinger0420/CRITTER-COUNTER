@@ -74,3 +74,18 @@ def test_save_detection_writes_day_folder(tmp_path):
     assert Image.open(crop).size == (80, 64)  # 40 px wide + 50% each side
     full2, _ = save_detection(frame, det, str(tmp_path), when=when)
     assert full2.endswith("183005_2_full.jpg")
+
+
+def test_save_detection_tag_in_names(tmp_path):
+    """A tag goes between the time and the image kind."""
+    frame = np.zeros((240, 320, 3), np.uint8)
+    det = Detection(
+        box=(100, 80, 140, 104),
+        changed_pixels=60,
+        changed_fraction=0.01,
+        peak_difference=90.0,
+    )
+    when = time.strptime("2026-10-27 22:15:00", "%Y-%m-%d %H:%M:%S")
+    full, crop = save_detection(frame, det, str(tmp_path), when=when, tag="night")
+    assert full.endswith("221500_night_full.jpg")
+    assert crop.endswith("221500_night_crop.jpg")

@@ -118,6 +118,8 @@ class ChangeDetector:
             many of its 8 neighbors also changed (0 keeps every pixel).
         scene_changed (bool): True if the last :meth:`update` reset the
             background because most of the scene changed.
+        brightness (float or None): Mean brightness (0-255) of the last
+            frame given to :meth:`update`.
     """
 
     def __init__(
@@ -169,6 +171,7 @@ class ChangeDetector:
         self.learning_rate = float(learning_rate)
         self.min_neighbors = min_neighbors
         self.scene_changed = False
+        self.brightness = None
         self._background = None
 
     @property
@@ -177,9 +180,10 @@ class ChangeDetector:
         return self._background is not None
 
     def reset(self):
-        """Forget the background; the next frame becomes the new one."""
+        """Forget the background (and brightness); the next frame is learned."""
         self._background = None
         self.scene_changed = False
+        self.brightness = None
 
     def update(self, frame):
         """Compare a frame with the background, then learn from it.
@@ -198,6 +202,7 @@ class ChangeDetector:
         """
         self.scene_changed = False
         small = downscale_gray(frame, self.scale)
+        self.brightness = float(small.mean())
         if self._background is None or self._background.shape != small.shape:
             self._background = small
             return None

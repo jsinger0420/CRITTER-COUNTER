@@ -109,3 +109,13 @@ def test_invalid_arguments(kwargs):
     """Out-of-range settings are rejected."""
     with pytest.raises(ValueError):
         ChangeDetector(**kwargs)
+
+
+def test_brightness_reported_and_cleared_by_reset():
+    """The detector reports each frame's mean brightness; reset() clears it."""
+    detector = ChangeDetector()
+    assert detector.brightness is None
+    detector.update(field_frame(brightness=150))
+    assert detector.brightness == pytest.approx(150, abs=1)
+    detector.reset()
+    assert detector.brightness is None
